@@ -1,0 +1,37 @@
+const router=require('express').Router();
+const db=require('../config/db');
+const v=require('../middleware/validate');
+const {requireAuth,requireRole}=require('../middleware/auth');
+const {fail}=require('../middleware/errors');
+const t=require('../services/training');
+const {reconcileUser}=require('../services/scheduler');
+const {today,weekStart,addDays}=require('../services/dates');
+const {consistency,streak}=require('../services/stats');
+router.use(requireAuth,requireRole('user'));
+router.get('/profile',async(req,res)=>res.json({profile:await t.profile(req.user.id),user:req.user}));
+router.put('/profile',async(req,res)=>res.json({profile:await t.saveProfile(req.user.id,v.profile.parse(req.body))}));
+router.post('/onboarding/complete',async(req,res)=>res.status(201).json({profile:await t.saveProfile(req.user.id,v.profile.parse(req.body),true)}));
+router.get('/plan',async(req,res)=>{await reconcileUser(req.user.id);const plan=await db.one("SELECT * FROM plans WHERE user_id=? AND status='active'",[req.user.id]);res.json({plan,sessions:plan?await t.sessions(plan.id):[]});});
+router.get('/dashboard',async(req,res)=>{
+ await reconcileUser(req.user.id);const plan=await db.one("SELECT * FROM plans WHERE user_id=? AND status='active'",[req.user.id]);const sessions=plan?await t.sessions(plan.id):[];const start=weekStart(today());const week=await db.query('SELECT ps.status FROM planned_sessions ps JOIN plans p ON p.id=ps.plan_id WHERE p.user_id=? AND ps.scheduled_date>=? AND ps.scheduled_date<? AND ps.is_rest=0',[req.user.id,start,addDays(start,7)]);const completed=week.filter(s=>s.status==='completed').length;
+ res.json({today:today(),plan,todaySession:sessions.find(s=>s.scheduled_date===today())||null,nextSession:sessions.find(s=>s.scheduled_date>today()&&!s.is_rest)||null,week:{completed,planned:week.length,percent:week.length?Math.round(completed/week.length*100):0},missed:sessions.filter(s=>s.status==='missed'),notifications:await db.one('SELECT COUNT(*) AS unread FROM notifications WHERE user_id=? AND is_read=0',[req.user.id])});
+});
+router.get('/exercises',async(req,res)=>res.json({exercises:(await t.catalog()).filter(e=>e.is_active)}));
+router.get('/exercises/:id/alternatives',async(req,res)=>{const catalog=await t.catalog(),e=catalog.find(e=>e.id===Number(req.params.id)),p=await t.profile(req.user.id);if(!e||!p)fail(404,'NOT_FOUND','Senaman tidak ditemui.');res.json({exercise:e,alternatives:catalog.filter(a=>a.id!==e.id&&a.muscle_group===e.muscle_group&&a.equipment_type===e.equipment_type&&require('../services/planGenerator').eligible(a,p)&&(['beginner','intermediate','advanced'].indexOf(a.level)<=['beginner','intermediate','advanced'].indexOf(e.level)))});});
+router.post('/sessions/:id/start',async(req,res)=>res.json(await t.startSession(req.params.id,req.user.id)));
+router.put('/sessions/:id/sets',async(req,res)=>{const data=v.z.object({exercise_log_id:v.z.number().int().positive(),sets:v.log.shape.sets,notes:v.log.shape.notes}).parse(req.body);res.json(await t.saveExercise(req.params.id,data.exercise_log_id,req.user.id,data));});
+router.post('/sessions/:id/finish',async(req,res)=>res.json(await t.finishSession(req.params.id,req.user.id)));
+router.get('/logs',async(req,res)=>res.json({logs:await db.query('SELECT sl.*,ps.session_label,ps.scheduled_date FROM session_logs sl JOIN planned_sessions ps ON ps.id=sl.planned_session_id WHERE sl.user_id=? ORDER BY sl.started_at DESC LIMIT 100',[req.user.id])}));
+router.get('/logs/:id',async(req,res)=>res.json(await t.getLog(req.params.id,req.user.id)));
+router.put('/logs/:id/exercises/:exerciseId',async(req,res)=>res.json(await t.saveExercise(req.params.id,req.params.exerciseId,req.user.id,v.log.parse(req.body))));
+router.get('/progress',async(req,res)=>{
+ const range=req.query.range==='week'?7:30,from=addDays(today(),-range),exerciseId=Number(req.query.exerciseId)||0;
+ const sessions=await db.query('SELECT ps.* FROM planned_sessions ps JOIN plans p ON p.id=ps.plan_id WHERE p.user_id=? AND ps.scheduled_date<? AND ps.is_rest=0 ORDER BY ps.scheduled_date',[req.user.id,today()]);const selected=sessions.filter(s=>s.scheduled_date>=from),completed=selected.filter(s=>s.status==='completed').length,missed=selected.filter(s=>s.status==='missed').length;
+ const points=await db.query('SELECT ps.scheduled_date,el.top_weight_kg FROM exercise_logs el JOIN session_logs sl ON sl.id=el.session_log_id JOIN planned_sessions ps ON ps.id=sl.planned_session_id WHERE sl.user_id=? AND el.exercise_id=? AND ps.scheduled_date>=? AND el.top_weight_kg IS NOT NULL ORDER BY ps.scheduled_date',[req.user.id,exerciseId,from]);
+ res.json({completed,missed,consistency:consistency(completed,missed),streak:streak(sessions),points,range});
+});
+router.get('/adaptations',async(req,res)=>{const limit=Math.min(100,Math.max(1,Number(req.query.limit)||20));res.json({events:await db.query(`SELECT * FROM adaptation_events WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT ${Math.floor(limit)}`,[req.user.id])});});
+router.get('/notifications',async(req,res)=>res.json({notifications:await db.query('SELECT * FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 100',[req.user.id])}));
+router.put('/notifications/:id/read',async(req,res)=>{await db.update('notifications',{is_read:1},'id=? AND user_id=?',[req.params.id,req.user.id]);res.json({ok:true});});
+router.post('/feedback',async(req,res)=>{const score=v.z.number().int().min(1).max(5);const d=v.z.object({ease_score:score,clarity_score:score,adjustment_score:score,comments:v.z.string().trim().max(2000).default('')}).parse(req.body);await db.insert('feedback_responses',{user_id:req.user.id,...d});res.status(201).json({message:'Terima kasih atas maklum balas anda!'});});
+module.exports=router;

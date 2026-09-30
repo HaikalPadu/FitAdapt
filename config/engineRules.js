@@ -1,0 +1,1 @@
+module.exports = Object.freeze({overload:{consecutiveSessions:2,maxRpe:7},hold:{rpeAtOrAbove:9,failedSessions:2,reducePercent:7.5},plateau:{sessions:3},missed:{consecutiveForVolumeCut:2,volumeCutPercent:25},maxLoadChangesPerWeek:1,editWindowHours:24,weightRounding:0.5});

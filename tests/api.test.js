@@ -1,0 +1,34 @@
+process.env.DB_DRIVER=process.env.TEST_DB_DRIVER||'sqlite';process.env.SQLITE_PATH=':memory:';
+if(process.env.DB_DRIVER==='turso')process.env.TURSO_DATABASE_URL='file::memory:';
+const {test,before,after}=require('node:test');const assert=require('node:assert/strict');const request=require('supertest');const bcrypt=require('bcryptjs');
+const db=require('../config/db'),migrate=require('../db/migrate'),{createApp}=require('../server');
+const {today,weekday,utc,addDays}=require('../services/dates');
+let app,user,admin,userCsrf,adminCsrf,userId,logId;
+const password='FitAdapt-Test-2026!';
+before(async()=>{await db.init();await migrate();process.env.SEED_ADMIN_PASSWORD=password;process.env.SEED_USER_PASSWORD=password;await require('../db/seed')();app=createApp();user=request.agent(app);admin=request.agent(app);const a=await admin.post('/api/auth/login').send({email:'admin@fitadapt.com',password});adminCsrf=a.body.csrf;});
+after(()=>db.close());
+test('complete user lifecycle with ownership, CSRF, validation, locks and administration',async()=>{
+ let r=await user.post('/api/auth/register').send({full_name:'Pengguna Ujian',email:'new@example.test',password,confirm_password:password,accept_terms:true});assert.equal(r.status,201);userCsrf=r.body.csrf;userId=r.body.user.id;
+ r=await user.get('/api/auth/me');assert.equal(r.body.onboarded,false);assert.ok(r.body.csrf);
+ r=await user.post('/api/feedback').send({ease_score:5,clarity_score:5,adjustment_score:5});assert.equal(r.status,403);
+ const current=weekday(today());const days=[current,((current+1)%7)+1].sort((a,b)=>a-b);
+ r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send({goal:'build_muscle',level:'beginner',equipment_level:'full_gym',limitation_notes:'',session_minutes:45,plan_start_date:today(),days});assert.equal(r.status,201,JSON.stringify(r.body));
+ r=await user.get('/api/dashboard');assert.equal(r.status,200);assert.ok(r.body.todaySession);const plannedId=r.body.todaySession.id;
+ r=await user.post('/api/sessions/'+plannedId+'/start').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200,JSON.stringify(r.body));logId=r.body.id;const exercises=r.body.exercises;
+ const rival=request.agent(app);const other=await rival.post('/api/auth/login').send({email:'user@fitadapt.com',password});r=await rival.get('/api/logs/'+logId);assert.equal(r.status,404);
+ r=await user.put(`/api/logs/${logId}/exercises/${exercises[0].id}`).set('X-CSRF-Token',userCsrf).send({sets:[{set_no:1,reps:12,weight_kg:10,rpe:11}]});assert.equal(r.status,422);
+ for(const e of exercises){r=await user.put(`/api/logs/${logId}/exercises/${e.id}`).set('X-CSRF-Token',userCsrf).send({sets:Array.from({length:e.target_sets},(_,i)=>({set_no:i+1,reps:12,weight_kg:10,rpe:7})),notes:'Baik'});assert.equal(r.status,200,JSON.stringify(r.body));}
+ r=await user.post('/api/sessions/'+logId+'/finish').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200);assert.equal(r.body.status,'completed');assert.ok(r.body.edit_locked_at);
+ await db.update('session_logs',{edit_locked_at:utc(new Date(Date.now()-1000))},'id=?',[logId]);r=await user.put(`/api/logs/${logId}/exercises/${exercises[0].id}`).set('X-CSRF-Token',userCsrf).send({sets:[],notes:''});assert.equal(r.status,403);assert.equal(r.body.error.code,'LOG_LOCKED');
+ r=await admin.get('/api/logs/'+logId);assert.equal(r.status,403);
+ r=await user.get('/api/admin/users');assert.equal(r.status,403);
+ r=await user.post('/api/feedback').set('X-CSRF-Token',userCsrf).send({ease_score:5,clarity_score:4,adjustment_score:5,comments:'=SUM(1,2)'});assert.equal(r.status,201);
+ r=await admin.get('/api/admin/feedback/export');assert.equal(r.status,200);assert.ok(r.text.includes("'=SUM"));
+ r=await admin.delete('/api/admin/users/1').set('X-CSRF-Token',adminCsrf).send({confirm:true});assert.equal(r.status,409);assert.equal(r.body.error.code,'SELF_PROTECTED');
+ r=await admin.delete('/api/admin/exercises/1').set('X-CSRF-Token',adminCsrf).send({});assert.equal(r.status,409);
+ r=await admin.patch('/api/admin/users/'+userId+'/status').set('X-CSRF-Token',adminCsrf).send({status:'suspended'});assert.equal(r.status,200);
+ r=await user.get('/api/auth/me');assert.equal(r.status,401);
+ r=await user.post('/api/auth/login').send({email:'new@example.test',password});assert.equal(r.status,403);
+ r=await admin.delete('/api/admin/users/'+userId).set('X-CSRF-Token',adminCsrf).send({confirm:true});assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(await db.one('SELECT id FROM session_logs WHERE id=?',[logId]),null);
+});
+test('security headers, unknown route, and static pages',async()=>{const r=await request(app).get('/');assert.equal(r.status,200);assert.ok(r.headers['content-security-policy']);const a=await request(app).get('/api/health');assert.equal(a.body.status,'ok');});

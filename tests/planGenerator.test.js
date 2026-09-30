@@ -1,0 +1,10 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {generate}=require('../services/planGenerator');
+const catalog=require('../db/catalog').map((e,i)=>({...e,id:i+1}));
+const profile={goal:'build_muscle',level:'beginner',equipment_level:'full_gym',limitation_notes:'',session_minutes:45,days:[1,3,5]};
+test('T9: correct split for every day count 2–6',()=>{for(const [days,split] of [[[1,4],'full_body'],[[1,3,5],'full_body'],[[1,2,4,5],'upper_lower'],[[1,2,3,5,6],'hybrid5'],[[1,2,3,4,5,6],'ppl6']]){const plan=generate({...profile,days},catalog,'2026-09-28');assert.equal(plan.split_type,split);assert.equal(plan.sessions.length,14);assert.equal(plan.sessions.filter(s=>!s.is_rest).length,days.length*2);}});
+test('T10: Malay knee limitation excludes knee-tagged exercises',()=>{const plan=generate({...profile,limitation_notes:'sakit lutut'},catalog,'2026-09-28');assert.ok(plan.sessions.flatMap(s=>s.exercises).every(e=>!e.tags.includes('knee')));});
+test('equipment and experience constraints hold',()=>{const plan=generate({...profile,equipment_level:'none'},catalog,'2026-09-28');assert.ok(plan.sessions.flatMap(s=>s.exercises).every(e=>e.equipment_type==='bodyweight'&&e.level==='beginner'));});
+test('consecutive full-body days allow muscle recovery',()=>{const plan=generate({...profile,days:[1,2,3]},catalog,'2026-09-28');for(let i=1;i<plan.sessions.length;i++){const a=plan.sessions[i-1],b=plan.sessions[i];if(!a.is_rest&&!b.is_rest)assert.ok(!a.exercises.some(e=>b.exercises.some(f=>f.muscle_group===e.muscle_group)));}});
+test('rejects invalid available-day counts',()=>assert.throws(()=>generate({...profile,days:[1]},catalog,'2026-09-28')));
+test('no unsuitable fallback when all catalog entries excluded',()=>assert.throws(()=>generate(profile,[],'2026-09-28'),e=>e.code==='NO_SAFE_EXERCISES'));
