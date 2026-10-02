@@ -1,0 +1,7 @@
+{
+  "name": "FitAdapt",
+  "description": "Pelan latihan adaptif untuk pelajar dan pemula gim",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

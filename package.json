@@ -4,6 +4,7 @@
   "private": true,
   "description": "Pelan latihan adaptif untuk pelajar dan pemula gim",
   "scripts": {
+    "build": "node --check server.js",
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --env-file-if-exists=.env --watch server.js",
     "db:migrate": "node --env-file-if-exists=.env db/migrate.js",

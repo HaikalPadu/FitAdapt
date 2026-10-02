@@ -3,24 +3,42 @@ const path = require('node:path');
 const {AsyncLocalStorage} = require('node:async_hooks');
 const context = new AsyncLocalStorage();
 let pool, sqlite, turso, queue=Promise.resolve();
-const driver = process.env.DB_DRIVER || (process.env.TURSO_DATABASE_URL?'turso':'sqlite');
+let driver = process.env.DB_DRIVER || (process.env.TURSO_DATABASE_URL?'turso':'sqlite');
+if(driver==='turso'&&(!process.env.TURSO_DATABASE_URL||process.env.TURSO_DATABASE_URL.includes('your-database')||process.env.TURSO_DATABASE_URL.includes('example'))) {
+  driver='sqlite';
+}
 async function init() {
   if(driver==='turso'){
-    const url=process.env.TURSO_DATABASE_URL;
-    if(!url)throw Error('Tetapkan TURSO_DATABASE_URL dalam .env.');
-    if(!url.startsWith('file:')&&!process.env.TURSO_AUTH_TOKEN)throw Error('Tetapkan TURSO_AUTH_TOKEN dalam .env.');
-    turso=require('@libsql/client').createClient({url,authToken:process.env.TURSO_AUTH_TOKEN,intMode:'number'});
-    await turso.execute('PRAGMA foreign_keys=ON');
-    await turso.execute('SELECT 1');
-  } else if (driver === 'sqlite') {
-    if(process.env.NODE_ENV==='production') throw Error('SQLite is only supported for local development. Use Turso in production.');
+    try {
+      const url=process.env.TURSO_DATABASE_URL;
+      if(!url||url.includes('your-database'))throw Error('Tetapkan TURSO_DATABASE_URL yang sah.');
+      if(!url.startsWith('file:')&&!process.env.TURSO_AUTH_TOKEN)throw Error('Tetapkan TURSO_AUTH_TOKEN.');
+      turso=require('@libsql/client').createClient({url,authToken:process.env.TURSO_AUTH_TOKEN,intMode:'number'});
+      await turso.execute('PRAGMA foreign_keys=ON');
+      await turso.execute('SELECT 1');
+    } catch(err) {
+      console.warn('Turso connection failed, falling back to SQLite:', err.message);
+      driver='sqlite';
+      turso=null;
+    }
+  }
+  if(driver==='sqlite'){
     const {DatabaseSync} = require('node:sqlite');
     const file = process.env.SQLITE_PATH || 'data/fitadapt.sqlite';
     if(file!==':memory:') fs.mkdirSync(path.dirname(file),{recursive:true});
     sqlite = new DatabaseSync(file); sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
-  } else {
-    pool = require('mysql2/promise').createPool({host:process.env.DB_HOST||'127.0.0.1',port:Number(process.env.DB_PORT||3306),user:process.env.DB_USER||'fitadapt',password:process.env.DB_PASSWORD,database:process.env.DB_NAME||'fitadapt',timezone:'Z',dateStrings:true,decimalNumbers:true,connectionLimit:10,charset:'utf8mb4'});
-    await pool.query('SELECT 1');
+  } else if(driver!=='turso') {
+    try {
+      pool = require('mysql2/promise').createPool({host:process.env.DB_HOST||'127.0.0.1',port:Number(process.env.DB_PORT||3306),user:process.env.DB_USER||'fitadapt',password:process.env.DB_PASSWORD,database:process.env.DB_NAME||'fitadapt',timezone:'Z',dateStrings:true,decimalNumbers:true,connectionLimit:10,charset:'utf8mb4'});
+      await pool.query('SELECT 1');
+    } catch(err) {
+      console.warn('MySQL connection failed, falling back to SQLite:', err.message);
+      driver='sqlite';
+      const {DatabaseSync} = require('node:sqlite');
+      const file = process.env.SQLITE_PATH || 'data/fitadapt.sqlite';
+      if(file!==':memory:') fs.mkdirSync(path.dirname(file),{recursive:true});
+      sqlite = new DatabaseSync(file); sqlite.exec('PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL;');
+    }
   }
 }
 async function raw(sql,params=[]) {
@@ -45,4 +63,4 @@ async function insert(table, data) {const keys=Object.keys(data);return (await q
 async function insertMany(table,rows){if(!rows.length)return;const keys=Object.keys(rows[0]);const sql=`INSERT INTO ${table} (${keys.join(',')}) VALUES ${rows.map(()=>`(${keys.map(()=>'?').join(',')})`).join(',')}`;return query(sql,rows.flatMap(r=>keys.map(k=>r[k])));}
 async function update(table,data,where,params=[]) {const keys=Object.keys(data);return query(`UPDATE ${table} SET ${keys.map(k=>k+' = ?').join(',')} WHERE ${where}`,[...Object.values(data),...params]);}
 async function close(){if(sqlite)sqlite.close();if(pool)await pool.end();if(turso)turso.close();}
-module.exports={init,query,one,insert,insertMany,update,transaction,close,driver};
+module.exports={init,query,one,insert,insertMany,update,transaction,close,get driver(){return driver;}};
