@@ -8,11 +8,17 @@ const password='FitAdapt-Test-2026!';
 before(async()=>{await db.init();await migrate();process.env.SEED_ADMIN_PASSWORD=password;process.env.SEED_USER_PASSWORD=password;await require('../db/seed')();app=createApp();user=request.agent(app);admin=request.agent(app);const a=await admin.post('/api/auth/login').send({email:'admin@fitadapt.com',password});adminCsrf=a.body.csrf;});
 after(()=>db.close());
 test('complete user lifecycle with ownership, CSRF, validation, locks and administration',async()=>{
- let r=await user.post('/api/auth/register').send({full_name:'Pengguna Ujian',email:'new@example.test',password,confirm_password:password,accept_terms:true});assert.equal(r.status,201);userCsrf=r.body.csrf;userId=r.body.user.id;
+ let r=await user.post('/api/auth/register').send({full_name:'Pengguna Ujian',email:'new@example.test',password,confirm_password:password,accept_terms:true});assert.equal(r.status,201);assert.equal(r.headers['set-cookie'],undefined);assert.equal(r.body.csrf,undefined);
+ r=await user.get('/api/auth/me');assert.equal(r.status,401);
+ r=await user.post('/api/onboarding/complete').send({});assert.equal(r.status,401);
+ r=await user.post('/api/auth/login').send({email:'new@example.test',password});assert.equal(r.status,200);assert.equal(r.body.onboarded,false);userCsrf=r.body.csrf;userId=r.body.user.id;
  r=await user.get('/api/auth/me');assert.equal(r.body.onboarded,false);assert.ok(r.body.csrf);
  r=await user.post('/api/feedback').send({ease_score:5,clarity_score:5,adjustment_score:5});assert.equal(r.status,403);
  const current=weekday(today());const days=[current,((current+1)%7)+1].sort((a,b)=>a-b);
- r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send({goal:'build_muscle',level:'beginner',equipment_level:'full_gym',limitation_notes:'',session_minutes:45,plan_start_date:today(),days});assert.equal(r.status,201,JSON.stringify(r.body));
+ const setup={goal:'build_muscle',level:'beginner',equipment_level:'full_gym',limitation_notes:'',session_minutes:25,plan_start_date:today(),days};
+ for(const minutes of [0,14,121,25.5]){r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send({...setup,session_minutes:minutes});assert.equal(r.status,422);}
+ r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send(setup);assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(r.body.profile.session_minutes,25);
+ r=await user.get('/api/profile');assert.equal(r.body.profile.session_minutes,25);
  r=await user.get('/api/dashboard');assert.equal(r.status,200);assert.ok(r.body.todaySession);const plannedId=r.body.todaySession.id;
  r=await user.post('/api/sessions/'+plannedId+'/start').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200,JSON.stringify(r.body));logId=r.body.id;const exercises=r.body.exercises;
  const rival=request.agent(app);const other=await rival.post('/api/auth/login').send({email:'user@fitadapt.com',password});r=await rival.get('/api/logs/'+logId);assert.equal(r.status,404);

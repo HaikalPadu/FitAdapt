@@ -1,0 +1,11 @@
+.env
+.env.*
+.git
+.npm-cache
+data
+tests
+test-results
+playwright-report
+FitAdapt
+PROMPT_SYSTEM.md
+*.log

@@ -3,7 +3,7 @@ const generator=require('./planGenerator');
 const engine=require('./adaptiveEngine');
 const {today,addDays,weekStart,utc,parseUtc}=require('./dates');
 const {fail}=require('../middleware/errors');
-async function profile(userId){const p=await db.one('SELECT * FROM profiles WHERE user_id=?',[userId]);if(p)p.days=(await db.query('SELECT weekday FROM profile_days WHERE profile_id=? ORDER BY weekday',[p.id])).map(r=>r.weekday);return p;}
+async function profile(userId){const p=await db.one('SELECT * FROM profiles WHERE user_id=?',[userId]);if(p){const preference=await db.one('SELECT duration_minutes FROM profile_preferences WHERE user_id=?',[userId]);if(preference)p.session_minutes=preference.duration_minutes;}if(p)p.days=(await db.query('SELECT weekday FROM profile_days WHERE profile_id=? ORDER BY weekday',[p.id])).map(r=>r.weekday);return p;}
 async function catalog(){const rows=await db.query('SELECT * FROM exercises ORDER BY id');const tags=await db.query('SELECT * FROM exercise_limitation_tags');return rows.map(e=>({...e,tags:tags.filter(t=>t.exercise_id===e.id).map(t=>t.tag)}));}
 async function sessions(planId){const rows=await db.query('SELECT * FROM planned_sessions WHERE plan_id=? ORDER BY scheduled_date',[planId]);const ex=await db.query('SELECT pe.*,e.name,e.muscle_group,e.split_tag,e.movement_focus,e.equipment_type,e.instructions,e.image_url,e.load_increment_kg FROM planned_exercises pe JOIN exercises e ON e.id=pe.exercise_id JOIN planned_sessions ps ON ps.id=pe.planned_session_id WHERE ps.plan_id=? ORDER BY pe.order_no',[planId]);return rows.map(s=>({...s,exercises:ex.filter(e=>e.planned_session_id===s.id)}));}
 async function storeSessions(planId,items){
@@ -31,8 +31,12 @@ async function saveProfile(userId,data,initial=false){return db.transaction(asyn
  if(!old&&data.plan_start_date<today())fail(422,'INVALID_START_DATE','Tarikh mula tidak boleh sebelum hari ini.');
  const {days,full_name,...values}=data;
  if(full_name)await db.update('users',{full_name,updated_at:utc()},'id=?',[userId]);
- const id=old?.id||await db.insert('profiles',{...values,user_id:userId});
- if(old)await db.update('profiles',{...values,updated_at:utc()},'id=?',[id]);
+ // Retain the legacy constrained column for existing databases and rollback compatibility.
+ const storedValues={...values,session_minutes:values.session_minutes<=30?30:values.session_minutes>=60?60:45};
+ const id=old?.id||await db.insert('profiles',{...storedValues,user_id:userId});
+ if(old)await db.update('profiles',{...storedValues,updated_at:utc()},'id=?',[id]);
+ await db.query('DELETE FROM profile_preferences WHERE user_id=?',[userId]);
+ await db.insert('profile_preferences',{user_id:userId,duration_minutes:values.session_minutes});
  await db.query('DELETE FROM profile_days WHERE profile_id=?',[id]);for(const weekday of days)await db.insert('profile_days',{profile_id:id,weekday});
  const changed=!old||['goal','level','equipment_level','limitation_notes','session_minutes'].some(k=>String(old[k]||'')!==String(values[k]||''))||JSON.stringify(old.days)!==JSON.stringify([...days].sort((a,b)=>a-b));
  if(changed)await makePlan(userId,{...values,days},old?addDays(today(),1):values.plan_start_date,old?'profile_update':'initial');

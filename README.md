@@ -93,6 +93,18 @@ server.js     Express app and Malaysia-time scheduled job
 
 ## Operation and deployment
 
+### Vercel
+
+The root `server.js` exports a request handler that initializes the database once per function instance. Configure production environment variables `NODE_ENV=production`, `DB_DRIVER=turso`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, and a random `CRON_SECRET`. Keep preview deployments on a separate database. Local `.env` files are excluded by `.vercelignore`.
+
+Run `db:migrate` and `db:seed` against the destination database before deployment. Migrations do not run during function cold starts. Seeding requires `SEED_ADMIN_PASSWORD` and `SEED_USER_PASSWORD`; these credentials do not need to be uploaded to Vercel.
+
+`vercel.json` configures Singapore hosting, static security headers, and an authenticated daily cron at 16:05 UTC (00:05 Malaysia time). Cron timing depends on the Vercel plan. Authentication rate limits are stored in the database so they are shared across function instances.
+
+After linking with `vercel link`, deploy with `vercel --prod`. Check `/api/health`, login, the exercise catalogue, `/vendor/chart.js`, and rejection of unauthenticated `/api/cron/daily` requests.
+
+### Persistent Node hosting
+
 Run as a persistent Node process with a process manager on an HTTPS host. Set `NODE_ENV=production`, `DB_DRIVER=turso`, `HOST=0.0.0.0`, the port required by your host, and the two Turso secrets. Production cookies require HTTPS. If a trusted reverse proxy is used, configure Express proxy trust for that exact topology before relying on client-IP rate limiting.
 
 The daily job runs at 00:05 Asia/Kuala_Lumpur. Dashboard/plan requests also reconcile missed sessions and extend the plan. An always-on process is needed for the daily job; a sleeping host reconciles when the user returns. Dates are stored in UTC; scheduled workout dates and week boundaries use Malaysia time.
@@ -101,4 +113,10 @@ An exercise catalogue may have too few safe exercises for some limitation/day co
 
 The generated legal text, generic exercise instructions, and catalogue are starter content for this MVP. Review them for your actual operator and audience before a public launch. Coach UI/API, email password recovery, push/email notifications and user log export remain out of MVP scope, as specified.
 
-No cloud deployment has been performed.
+See the Vercel project dashboard for deployment status and URLs.
+
+## Editing the React authentication pages
+
+The login and registration screens use `components/ui/login.tsx`, adapted from the supplied split-screen React component. Reusable shadcn primitives live in `components/ui/`, with aliases configured by `components.json` and `tsconfig.json`. This conventional folder keeps component imports and future shadcn additions consistent. Styles live in `client/auth.css`; `client/auth.tsx` mounts React only on authentication routes. Other application pages remain in `public/js/app.js`.
+
+Run `npm install`, `npm run typecheck`, and `npm run build` after editing these files. The build produces `public/js/auth.js` and `public/css/auth.css`; edit their sources rather than generated output. Start/dev rebuild once at startup; rerun the build after editing TSX or authentication styles. Vercel runs the build automatically. Use `npm run test:auth-browser` for the isolated registration/login browser checks (requires Microsoft Edge). Registration still requires a separate login. Password recovery and a Remember Me toggle are omitted because the existing API does not implement those features.

@@ -20,7 +20,7 @@ function generate(profile,catalog,startDate,dayCount=14,previous=[]) {
   // On adjacent full-body days, partition upper/lower so primary muscles recover for 48h.
   const tomorrowAvailable=days.includes(weekday(addDays(date,1)));
   const filtered=focus==='full'&&tomorrowAvailable&&!recent.length?pool.filter(e=>['push','pull'].includes(e.split_tag)):pool;
-  const count=profile.session_minutes===30?4:profile.session_minutes===60?6:5;
+  const count=profile.session_minutes<30?Math.max(2,Math.ceil(profile.session_minutes/10)):profile.session_minutes<45?4:profile.session_minutes<60?5:6;
   const ordered=filtered.sort((a,b)=>b.is_compound-a.is_compound||a.id-b.id);
   const chosen=[]; const groups=new Set();
   for(const e of ordered)if(!groups.has(e.muscle_group)&&chosen.length<count){chosen.push(e);groups.add(e.muscle_group);}

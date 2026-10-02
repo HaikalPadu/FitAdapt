@@ -1,0 +1,53 @@
+process.env.DB_DRIVER='sqlite';process.env.SQLITE_PATH=':memory:';
+const {chromium}=require('@playwright/test');
+const assert=require('node:assert/strict');
+const db=require('../config/db');
+async function run(){
+ await db.init();await require('../db/migrate')();
+ const server=require('../server').createApp().listen(0,'127.0.0.1');
+ await new Promise(resolve=>server.on('listening',resolve));
+ const browser=await chromium.launch({channel:'msedge',headless:true});
+ try{
+  const context=await browser.newContext({viewport:{width:1440,height:1000}});
+  const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const base='http://127.0.0.1:'+server.address().port;
+  await page.goto(base+'/#register');
+  await page.getByRole('button',{name:'Daftar akaun',exact:true}).click();
+  await page.getByText('Masukkan nama penuh (maksimum 100 aksara).',{exact:true}).waitFor();
+  await page.getByLabel('Nama penuh',{exact:true}).fill('Auth Test');
+  await page.getByLabel('E-mel',{exact:true}).fill('auth@example.test');
+  await page.getByLabel('Kata laluan',{exact:true}).fill('Auth-Test-123!');
+  await page.getByLabel('Sahkan kata laluan',{exact:true}).fill('Wrong-Test-123!');
+  await page.getByRole('checkbox').check();
+  await page.getByRole('button',{name:'Daftar akaun',exact:true}).click();
+  await page.getByText('Pengesahan kata laluan tidak sepadan.',{exact:true}).waitFor();
+  await page.getByLabel('Sahkan kata laluan',{exact:true}).fill('Auth-Test-123!');
+  await page.screenshot({path:'test-results/auth-register-desktop.png',fullPage:true});
+  await page.getByRole('button',{name:'Daftar akaun',exact:true}).click();
+  await page.waitForURL('**/#login');
+  await page.getByText('Akaun berjaya didaftarkan. Sila log masuk untuk meneruskan.',{exact:true}).waitFor();
+  assert.equal((await context.request.get(base+'/api/auth/me')).status(),401);
+  assert.equal(await page.getByLabel('E-mel',{exact:true}).inputValue(),'auth@example.test');
+  await page.getByLabel('Kata laluan',{exact:true}).fill('Wrong-Test-123!');
+  await page.getByRole('button',{name:'Log masuk',exact:true}).click();
+  await page.getByRole('alert').waitFor();
+  await page.getByLabel('Kata laluan',{exact:true}).fill('Auth-Test-123!');
+  await page.getByRole('button',{name:'Papar kata laluan',exact:true}).click();
+  assert.equal(await page.getByLabel('Kata laluan',{exact:true}).getAttribute('type'),'text');
+  await page.getByRole('button',{name:'Sembunyikan kata laluan',exact:true}).click();
+  await page.screenshot({path:'test-results/auth-login-desktop.png',fullPage:true});
+  await page.setViewportSize({width:375,height:812});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:'test-results/auth-login-mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Log masuk',exact:true}).click();
+  await page.locator('#setup-dialog[open]').waitFor();
+  await page.getByRole('button',{name:'Log keluar',exact:true}).click();
+  await page.waitForURL('**/#login');
+  await page.getByRole('link',{name:'Daftar di sini'}).click();
+  await page.getByLabel('Nama penuh',{exact:true}).waitFor();
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  assert.deepEqual(errors,[]);
+  console.log('PASS: desktop/mobile auth, validation, register -> login -> onboarding, logout, navigation and password toggle');
+ }finally{await browser.close();await new Promise(resolve=>server.close(resolve));await db.close();}
+}
+run().catch(e=>{console.error(e);process.exitCode=1});
