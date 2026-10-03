@@ -32,8 +32,8 @@ export function AuthFormSplitScreen({register,initialEmail='',successMessage,onS
  const reduced=useReducedMotion();
  const form=useForm<AuthValues>({resolver:zodResolver(schemaFor(register)),defaultValues:{email:initialEmail,password:'',full_name:'',confirm_password:'',accept_terms:false}});
  const busy=form.formState.isSubmitting;
- const item={hidden:{opacity:0,y:20},visible:{opacity:1,y:0,transition:{duration:.5}}};
- const sequence={hidden:{},visible:{transition:{delayChildren:.18,staggerChildren:.12}}};
+ const item={hidden:{opacity:0,y:20},visible:{opacity:1,y:0,transition:{duration:.2}}};
+ const sequence={hidden:{},visible:{transition:{delayChildren:0,staggerChildren:.03}}};
  const submit=async(values:AuthValues)=>{setError('');try{await onSubmit(values);}catch(e){setError(e instanceof Error?e.message:'Permintaan gagal. Sila cuba lagi.');requestAnimationFrame(()=>errorRef.current?.focus());}};
  const textField=(name:'email'|'full_name'|'confirm_password',label:string,type:string,placeholder:string,autoComplete:string)=><FormField control={form.control} name={name} render={({field})=><motion.div variants={item}><FormItem><FormLabel>{label}</FormLabel><FormControl><Input {...field} type={type} placeholder={placeholder} autoComplete={autoComplete} disabled={busy}/></FormControl><FormMessage/></FormItem></motion.div>}/>;
  return <div className="auth-split">
@@ -41,8 +41,8 @@ export function AuthFormSplitScreen({register,initialEmail='',successMessage,onS
    <a className="brand" href="#home" aria-label="FitAdapt — halaman utama"><img src="/img/logo.svg" alt=""/><span>Fit<em>Adapt</em></span></a>
    <motion.div className="auth-split-content" variants={sequence} initial={reduced?false:"hidden"} animate="visible">
     <motion.div variants={item}><span className="auth-eyebrow">{register?'LANGKAH PERTAMA KAMU':'SELAMAT KEMBALI'}</span>
-    <h1>{register?'Mulakan perjalanan kamu.':'Jom teruskan kemajuan.'}</h1>
-    <p className="auth-description">{register?'Cipta akaun untuk latihan yang sesuai dengan hidup kamu.':'Log masuk untuk melihat pelan dan merekod latihan kamu.'}</p></motion.div>
+    <h1>{register?'Cipta akaun kamu':'Log masuk'}</h1>
+    <p className="auth-description">{register?'Daftar, log masuk, kemudian pilih matlamat dan jadual latihan kamu.':'Masukkan e-mel dan kata laluan untuk membuka latihan kamu.'}</p></motion.div>
     {successMessage&&<div className="auth-success" role="status">{successMessage}</div>}
     <Form {...form}><motion.form variants={sequence} onSubmit={form.handleSubmit(submit)} noValidate className="space-y-4">
      {error&&<div ref={errorRef} tabIndex={-1} role="alert" className="auth-error">{error}</div>}
