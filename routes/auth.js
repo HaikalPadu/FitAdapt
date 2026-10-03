@@ -9,6 +9,7 @@ const {utc}=require('../services/dates');
 const limiter=rateLimit({windowMs:15*60*1000,limit:20,standardHeaders:'draft-8',legacyHeaders:false,store:new (require('../services/rateLimitStore'))(),message:{error:{code:'RATE_LIMITED',message:'Terlalu banyak cubaan. Cuba lagi selepas 15 minit.'}}});
 router.post('/register',limiter,async(req,res)=>{
  const d=z.object({full_name:str(100),email:z.email().max(150).transform(v=>v.toLowerCase()),password,confirm_password:z.string(),accept_terms:z.literal(true)}).refine(d=>d.password===d.confirm_password,'Pengesahan kata laluan tidak sepadan.').parse(req.body);
+ const id=await db.insert('users',{full_name:d.full_name,email:d.email,password_hash:await bcrypt.hash(d.password,12),role:'user',status:'active',terms_accepted_at:utc()});
  res.status(201).json({message:'Akaun berjaya didaftarkan. Sila log masuk untuk meneruskan.'});
 });
 router.post('/login',limiter,async(req,res)=>{
