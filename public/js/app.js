@@ -51,7 +51,6 @@ async function authPage(register){
  go(result.user.role==='admin'?'admin':result.onboarded?'dashboard':'onboarding');
  }});
 }
-}
 
 function dayFields(selected){return `<fieldset class="field full"><legend>Hari tersedia <span class="muted">· Pilih 2 hingga 6 hari</span></legend><div class="day-options">${days.map((d,i)=>`<label class="day-option"><input type="checkbox" name="days" value="${i+1}" ${selected.includes(i+1)?'checked':''}><span>${d}</span></label>`).join('')}</div><small id="day-count">Dipilih: ${selected.length} hari</small></fieldset>`;}
 function profileFields(p){return `${select('Matlamat latihan','goal',['build_muscle','lose_weight','general_fitness'],p.goal)}${select('Tahap pengalaman','level',['beginner','intermediate'],p.level)}${dayFields(p.days)}${select('Akses peralatan','equipment_level',['none','dumbbell','full_gym'],p.equipment_level)}${field('Tempoh sesi (minit)','session_minutes',p.session_minutes,'number','required min="15" max="120" step="1" aria-describedby="duration-help"')+'<p class="small muted" id="duration-help">Pilih 15–120 minit, contohnya 25 atau 50. Ini anggaran masa latihan kamu.</p>'}<div class="field full"><label for="limitation_notes">Limitasi atau bahagian badan yang perlu dijaga</label><textarea id="limitation_notes" name="limitation_notes" maxlength="200" placeholder="Contoh: sakit lutut, bahu atau belakang">${esc(p.limitation_notes)}</textarea><small>Maksimum 200 aksara. Senaman berkaitan akan dikecualikan.</small></div>`;}
