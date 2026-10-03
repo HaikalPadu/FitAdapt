@@ -10,6 +10,8 @@ const {consistency,streak}=require('../services/stats');
 router.use(requireAuth,requireRole('user'));
 router.get('/profile',async(req,res)=>res.json({profile:await t.profile(req.user.id),user:req.user}));
 router.put('/profile',async(req,res)=>res.json({profile:await t.saveProfile(req.user.id,v.profile.parse(req.body))}));
+// Preview uses the same generator as saving, without writing user or plan records.
+router.post('/plan/preview',async(req,res)=>{const p=v.profile.parse(req.body);if(p.plan_start_date<today())fail(422,'INVALID_START_DATE','Tarikh mula tidak boleh sebelum hari ini.');const result=require('../services/planGenerator').generate(p,await t.catalog(),p.plan_start_date);res.json(result);});
 router.post('/onboarding/complete',async(req,res)=>res.status(201).json({profile:await t.saveProfile(req.user.id,v.profile.parse(req.body),true)}));
 router.get('/plan',async(req,res)=>{await reconcileUser(req.user.id);const plan=await db.one("SELECT * FROM plans WHERE user_id=? AND status='active'",[req.user.id]);res.json({plan,sessions:plan?await t.sessions(plan.id):[]});});
 router.get('/dashboard',async(req,res)=>{
@@ -26,7 +28,7 @@ router.get('/logs/:id',async(req,res)=>res.json(await t.getLog(req.params.id,req
 router.put('/logs/:id/exercises/:exerciseId',async(req,res)=>res.json(await t.saveExercise(req.params.id,req.params.exerciseId,req.user.id,v.log.parse(req.body))));
 router.get('/progress',async(req,res)=>{
  const range=req.query.range==='week'?7:30,from=addDays(today(),-range),exerciseId=Number(req.query.exerciseId)||0;
- const sessions=await db.query('SELECT ps.* FROM planned_sessions ps JOIN plans p ON p.id=ps.plan_id WHERE p.user_id=? AND ps.scheduled_date<? AND ps.is_rest=0 ORDER BY ps.scheduled_date',[req.user.id,today()]);const selected=sessions.filter(s=>s.scheduled_date>=from),completed=selected.filter(s=>s.status==='completed').length,missed=selected.filter(s=>s.status==='missed').length;
+ const sessions=await db.query('SELECT ps.* FROM planned_sessions ps JOIN plans p ON p.id=ps.plan_id WHERE p.user_id=? AND ps.scheduled_date<=? AND ps.is_rest=0 ORDER BY ps.scheduled_date',[req.user.id,today()]);const selected=sessions.filter(s=>s.scheduled_date>=from),completed=selected.filter(s=>s.status==='completed').length,missed=selected.filter(s=>s.status==='missed').length;
  const points=await db.query('SELECT ps.scheduled_date,el.top_weight_kg FROM exercise_logs el JOIN session_logs sl ON sl.id=el.session_log_id JOIN planned_sessions ps ON ps.id=sl.planned_session_id WHERE sl.user_id=? AND el.exercise_id=? AND ps.scheduled_date>=? AND el.top_weight_kg IS NOT NULL ORDER BY ps.scheduled_date',[req.user.id,exerciseId,from]);
  res.json({completed,missed,consistency:consistency(completed,missed),streak:streak(sessions),points,range});
 });

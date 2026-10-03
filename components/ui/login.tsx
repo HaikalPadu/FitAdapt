@@ -59,8 +59,7 @@ export function AuthFormSplitScreen({register,initialEmail='',successMessage,onS
    <footer className="auth-footer"><a href="#home">Kembali ke halaman utama</a><span>© {new Date().getFullYear()} FitAdapt</span></footer>
   </main>
   <aside className="auth-split-image" aria-label="Inspirasi perjalanan latihan">
-   <img src="https://cdn.21st.dev/assets/mirror/77/77284ad97d21e0dee793a11589164ab18f735a615b2cb38498848185ff58da92.jpg" alt="Arca abstrak dengan lingkaran emas pada latar gelap."/>
-   <div className="auth-image-overlay"/>
+   <span className="auth-studio-label">YOUR PERSONAL TRAINING STUDIO</span><div className="orbit-art" aria-hidden="true"><span>FIT</span><svg className="icon" viewBox="0 0 24 24"><path d="m6 6 12 12 M3 7l4-4 M2 10l8-8 M14 22l8-8 M17 21l4-4 M5 12l7-7 M12 19l7-7"/></svg><small>BUILT AROUND YOU</small></div>
    <div className="auth-image-caption"><span>RENTAK KAMU. KEMAJUAN KAMU.</span><h2>Satu langkah hari ini.<br/>Lebih kuat esok.</h2><p>Pelan peribadi, latihan yang fleksibel, dan kemajuan yang boleh kamu lihat.</p><div className="auth-image-tags"><span>Ikut jadual kamu</span><span>Raikan setiap kemajuan</span></div></div>
   </aside>
  </div>;

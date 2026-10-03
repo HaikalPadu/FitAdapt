@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "project": {
+    "name": "fitadapt",
+    "productType": "Personal workout planning and training log",
+    "stack": [
+      "react",
+      "shadcn",
+      "tailwind-v4"
+    ]
+  },
+  "sources": {
+    "tokens": [],
+    "components": [
+      "components/ui"
+    ],
+    "assets": [],
+    "instructions": []
+  },
+  "design": {
+    "colorMode": "dark",
+    "colors": {
+      "background": "#0c101c",
+      "surface": "#151b2b",
+      "accent": "#b3a2fa",
+      "text": "#f0f2fa"
+    },
+    "typography": {},
+    "spacing": {},
+    "radius": {},
+    "shadows": {},
+    "motion": {},
+    "density": "balanced"
+  },
+  "components": {
+    "installed": [
+      "button",
+      "card",
+      "checkbox",
+      "form",
+      "input",
+      "label",
+      "login",
+      "sign-in-card-2"
+    ],
+    "preferredPrimitives": [
+      "radix-ui"
+    ],
+    "patterns": []
+  },
+  "constraints": {
+    "must": [],
+    "avoid": []
+  },
+  "decisions": [
+    "Premium training studio direction: navy surfaces, violet accents, shared spacing and aligned grids.",
+    "Visual onboarding choices lead to a real server-generated preview before plan creation.",
+    "Calendar-based planner replaces the long session list.",
+    "Use existing form, button, icon and dialog primitives; no external design context uploaded."
+  ],
+  "evidence": [
+    {
+      "fact": "components.installed",
+      "source": "components/ui"
+    },
+    {
+      "fact": "project.stack:react",
+      "source": "package.json"
+    },
+    {
+      "fact": "project.stack:shadcn",
+      "source": "components.json"
+    },
+    {
+      "fact": "project.stack:tailwind-v4",
+      "source": "package.json"
+    }
+  ],
+  "generatedAt": "2026-10-03T07:52:42.147Z"
+}

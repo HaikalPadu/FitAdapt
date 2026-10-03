@@ -16,15 +16,22 @@ test('complete user lifecycle with ownership, CSRF, validation, locks and admini
  r=await user.post('/api/feedback').send({ease_score:5,clarity_score:5,adjustment_score:5});assert.equal(r.status,403);
  const current=weekday(today());const days=[current,((current+1)%7)+1].sort((a,b)=>a-b);
  const setup={goal:'build_muscle',level:'beginner',equipment_level:'full_gym',limitation_notes:'',session_minutes:25,plan_start_date:today(),days};
+ r=await request(app).post('/api/plan/preview').send(setup);assert.equal(r.status,401);
+ r=await user.post('/api/plan/preview').send(setup);assert.equal(r.status,403);
+ r=await user.post('/api/plan/preview').set('X-CSRF-Token',userCsrf).send({...setup,days:[1]});assert.equal(r.status,422);
+ r=await user.post('/api/plan/preview').set('X-CSRF-Token',userCsrf).send(setup);assert.equal(r.status,200);assert.equal(r.body.sessions.length,14);assert.ok(r.body.sessions.some(s=>!s.is_rest&&s.exercises.length));const preview=r.body;
+ assert.equal(await db.one('SELECT id FROM profiles WHERE user_id=?',[userId]),null);
+ assert.equal(await db.one('SELECT id FROM plans WHERE user_id=?',[userId]),null);
  for(const minutes of [0,14,121,25.5]){r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send({...setup,session_minutes:minutes});assert.equal(r.status,422);}
  r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send(setup);assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(r.body.profile.session_minutes,25);
  r=await user.get('/api/profile');assert.equal(r.body.profile.session_minutes,25);
- r=await user.get('/api/dashboard');assert.equal(r.status,200);assert.ok(r.body.todaySession);const plannedId=r.body.todaySession.id;
+ r=await user.get('/api/dashboard');assert.equal(r.status,200);assert.ok(r.body.todaySession);assert.deepEqual(r.body.todaySession.exercises.map(e=>e.exercise_id),preview.sessions.find(s=>s.scheduled_date===today()).exercises.map(e=>e.exercise_id));const plannedId=r.body.todaySession.id;
  r=await user.post('/api/sessions/'+plannedId+'/start').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200,JSON.stringify(r.body));logId=r.body.id;const exercises=r.body.exercises;
  const rival=request.agent(app);const other=await rival.post('/api/auth/login').send({email:'user@fitadapt.com',password});r=await rival.get('/api/logs/'+logId);assert.equal(r.status,404);
  r=await user.put(`/api/logs/${logId}/exercises/${exercises[0].id}`).set('X-CSRF-Token',userCsrf).send({sets:[{set_no:1,reps:12,weight_kg:10,rpe:11}]});assert.equal(r.status,422);
  for(const e of exercises){r=await user.put(`/api/logs/${logId}/exercises/${e.id}`).set('X-CSRF-Token',userCsrf).send({sets:Array.from({length:e.target_sets},(_,i)=>({set_no:i+1,reps:12,weight_kg:10,rpe:7})),notes:'Baik'});assert.equal(r.status,200,JSON.stringify(r.body));}
  r=await user.post('/api/sessions/'+logId+'/finish').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200);assert.equal(r.body.status,'completed');assert.ok(r.body.edit_locked_at);
+ r=await user.get('/api/progress?range=week');assert.equal(r.status,200);assert.equal(r.body.completed,1);assert.equal(r.body.streak,1);assert.equal(r.body.consistency,100);
  await db.update('session_logs',{edit_locked_at:utc(new Date(Date.now()-1000))},'id=?',[logId]);r=await user.put(`/api/logs/${logId}/exercises/${exercises[0].id}`).set('X-CSRF-Token',userCsrf).send({sets:[],notes:''});assert.equal(r.status,403);assert.equal(r.body.error.code,'LOG_LOCKED');
  r=await admin.get('/api/logs/'+logId);assert.equal(r.status,403);
  r=await user.get('/api/admin/users');assert.equal(r.status,403);
