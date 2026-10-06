@@ -1,0 +1,15 @@
+const router=require('express').Router();
+const {requireAuth,requireRole}=require('../middleware/auth');
+const n=require('../services/nutrition');
+const {today}=require('../services/dates');
+router.use(requireAuth,requireRole('user'));
+router.use(async(req,res,next)=>{await n.ensureSchema();next();});
+router.get('/foods',(req,res)=>{const q=String(req.query.q||'').trim().slice(0,100).toLowerCase();res.json({foods:n.foods.filter(f=>(f.name_ms+' '+f.name_en+' '+f.source_description).toLowerCase().includes(q))});});
+router.get('/day',async(req,res)=>res.json(await n.day(req.user.id,req.query.date||today())));
+router.get('/profile',async(req,res)=>{const profile=await n.profile(req.user.id);res.json({profile,target:profile?n.estimate(profile):null});});
+router.post('/estimate',(req,res)=>res.json({target:n.estimate(req.body)}));
+router.put('/profile',async(req,res)=>res.json(await n.saveProfile(req.user.id,req.body)));
+router.post('/entries',async(req,res)=>res.status(201).json(await n.addEntry(req.user.id,req.body)));
+router.put('/entries/:id',async(req,res)=>{await n.updateEntry(req.user.id,req.params.id,req.body);res.json({ok:true});});
+router.delete('/entries/:id',async(req,res)=>{await n.deleteEntry(req.user.id,req.params.id);res.json({ok:true});});
+module.exports=router;

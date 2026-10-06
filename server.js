@@ -33,7 +33,7 @@ function createApp(){
   if(!secret||req.get('authorization')!==`Bearer ${secret}`)return res.status(401).json({error:{code:'UNAUTHORIZED'}});
   await require('./services/scheduler').runDaily();res.json({status:'ok'});
  });
- app.use('/api/auth',require('./routes/auth'));app.use('/api/admin',require('./routes/admin'));app.use('/api',require('./routes/user'));
+ app.use('/api/auth',require('./routes/auth'));app.use('/api/admin',require('./routes/admin'));app.use('/api/nutrition',require('./routes/nutrition'));app.use('/api',require('./routes/user'));
  app.use('/api',(req,res)=>res.status(404).json({error:{code:'NOT_FOUND',message:'Laluan tidak ditemui.'}}));
  app.get('/vendor/chart.js',(req,res)=>res.sendFile(path.join(__dirname,'node_modules/chart.js/dist/chart.umd.js')));
  app.use(express.static(path.join(__dirname,'public')));app.use(errors);return app;

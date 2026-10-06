@@ -3,6 +3,7 @@ const {execFileSync}=require('node:child_process');
 const path=require('node:path');
 // Fail deployment before publishing a broken browser entrypoint.
 execFileSync(process.execPath,['--check','public/js/app.js'],{stdio:'inherit'});
+execFileSync(process.execPath,['--check','public/js/nutrition.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','public/js/preferences.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','public/js/translations.js'],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','server.js'],{stdio:'inherit'});

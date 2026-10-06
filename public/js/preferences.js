@@ -8,6 +8,7 @@
   // A separate allowlist prevents administrator-authored exercise copy from being
   // mistaken for interface labels (for example, an instruction simply named Rehat).
   const systemKeys = new Set([
+    'Pilih tarikh hari ini atau sebelumnya.','Semak nilai label bagi setiap 100 g.','Pilih makanan atau masukkan label makanan.','Makanan tidak ditemui.','Rekod makanan tidak ditemui.',
     'Hari rehat','Seluruh Badan','Atas Badan (Push / Pull)','Bawah Badan','Atas Badan (Push)','Atas Badan (Pull)','Bawah Badan (Squat)','Bawah Badan (Hinge)',
     'Pelan pertama dijana mengikut profil anda.','Pelan dilaraskan mengikut perubahan profil.','Profil dikemas kini. Pelan baharu bermula esok.',
     'Mulakan dengan posisi stabil. Lakukan pergerakan secara terkawal, hembus nafas ketika mengangkat dan elakkan mengunci sendi. Berhenti jika terasa sakit.',

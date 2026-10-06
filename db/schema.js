@@ -27,6 +27,6 @@ const tables = [
 `coach_clients (coach_id ${ref} NOT NULL, client_id ${ref} NOT NULL, assigned_at ${stamp}, PRIMARY KEY(coach_id,client_id), FOREIGN KEY(coach_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY(client_id) REFERENCES users(id) ON DELETE CASCADE)`,
 `coach_notes (id ${id}, coach_id ${ref} NOT NULL, client_id ${ref} NOT NULL, message TEXT NOT NULL, created_at ${stamp}, FOREIGN KEY(coach_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY(client_id) REFERENCES users(id) ON DELETE CASCADE)`
 ];
-return tables.map(t=>'CREATE TABLE IF NOT EXISTS '+t.replace(' REFERENCES_PLACEHOLDER','')+(mysql?' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci':'')+';');
+return tables.map(t=>'CREATE TABLE IF NOT EXISTS '+t.replace(' REFERENCES_PLACEHOLDER','')+(mysql?' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci':'')+';').concat(require('./nutrition-schema')(driver));
 }
 module.exports=schema;
