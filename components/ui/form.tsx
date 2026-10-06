@@ -14,6 +14,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import {systemText, useLanguage} from '@/lib/preferences'
 
 const Form = FormProvider
 
@@ -146,8 +147,9 @@ const FormMessage = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
+  useLanguage()
   const { error, formMessageId } = useFormField()
-  const body = error ? String(error?.message) : children
+  const body = error ? systemText(String(error?.message)) : children
 
   if (!body) {
     return null

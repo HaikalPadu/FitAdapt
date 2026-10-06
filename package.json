@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "prestart": "npm run build",
     "predev": "npm run build",
-    "test:auth-browser": "node tests/auth-browser.js"
+    "test:auth-browser": "node tests/auth-browser.js",
+    "test:preferences-browser": "node tests/preferences-browser.js"
   },
   "engines": {
     "node": ">=22.13"

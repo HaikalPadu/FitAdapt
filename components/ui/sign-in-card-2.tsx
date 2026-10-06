@@ -1,9 +1,11 @@
 'use client';
+import {t,useLanguage} from '../../lib/preferences';
 import {useState, type PointerEvent} from 'react';
 import {motion, useReducedMotion, useSpring} from 'framer-motion';
 import {AuthFormSplitScreen, type AuthFormSplitScreenProps} from './login';
 
 export function Component(props:AuthFormSplitScreenProps){
+ useLanguage();
  const reduced=useReducedMotion();
  const [paused,setPaused]=useState(false);
  const still=!!reduced||paused;
@@ -18,7 +20,7 @@ export function Component(props:AuthFormSplitScreenProps){
   rotateY.set((event.clientX-rect.left-rect.width/2)/rect.width*16);
  };
  return <div className="simple-auth auth-3d" data-still={still}>
-  <button className="auth-motion-control" type="button" aria-pressed={paused} onClick={()=>{setPaused(!paused);reset();}}>{paused?'Hidupkan animasi':'Jeda animasi'}</button>
+  <button className="auth-motion-control" type="button" aria-pressed={paused} onClick={()=>{setPaused(!paused);reset();}}>{paused?t('Hidupkan animasi'):t('Jeda animasi')}</button>
   <motion.div className="auth-3d-stage" initial={reduced?false:{opacity:0,y:36,rotateX:9,scale:.97}} animate={{opacity:1,y:0,rotateX:0,scale:1}} transition={{duration:.85,ease:[.16,1,.3,1]}}>
    <motion.div className="auth-3d-card" style={{rotateX,rotateY}} onPointerMove={move} onPointerLeave={reset} onFocusCapture={reset}>
     <div className="auth-3d-rim" aria-hidden="true"/>
