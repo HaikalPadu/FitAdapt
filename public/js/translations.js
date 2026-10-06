@@ -1,5 +1,6 @@
 /* Authored interface copy only. User names, notes and feedback are never translated. */
 window.FitAdaptEnglish = {
+  '03 / KESELAMATAN AKAUN':'03 / ACCOUNT SECURITY',
   'Pilih tarikh hari ini atau sebelumnya.':'Choose today or an earlier date.',
   'Semak nilai label bagi setiap 100 g.':'Check the label values per 100 g.',
   'Pilih makanan atau masukkan label makanan.':'Choose a food or enter a food label.',

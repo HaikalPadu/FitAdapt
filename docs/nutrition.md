@@ -2,6 +2,8 @@
 
 Nutrition Lab keeps a private, dated food diary separate from the training profile. Users can estimate a daily energy guide, look up portions, log meals, edit or remove entries, and enter food-label values per 100 g. All interface copy supports Malay and English and existing light/dark themes.
 
+Progress includes a 7-day or 30-day nutrition summary ending today (Malaysia time): days logged, average logged calories/macros, daily calorie bars and an accessible daily data table. Unlogged days remain null and are excluded from averages; partially logged days are explicitly identified as potentially incomplete. The current calorie guide is labelled separately and is not presented as a historical target. Profile displays nutrition measurements, goal, preferences and estimated guide; its edit dialog shares the Nutrition Lab profile without regenerating workouts or discarding unsaved workout-form fields.
+
 ## Data and estimates
 
 The starter catalogue contains 30 foods from USDA FoodData Central SR Legacy (April 2018). Each item retains its FDC identifier, source description, preparation state, and source link. Rebuild it with `node scripts/import-nutrition-foods.js <extracted USDA CSV directory>`. Download: https://fdc.nal.usda.gov/download-datasets/ . No external API key is needed. It is not an exhaustive Malaysian food database. Users can enter their own labels or known recipes; unknown optional nutrients remain null and coverage is shown in daily totals.

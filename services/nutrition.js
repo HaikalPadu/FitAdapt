@@ -1,6 +1,6 @@
 const db=require('../config/db');
 const {z}=require('zod');
-const {today,utc}=require('./dates');
+const {today,utc,addDays}=require('./dates');
 const {fail}=require('../middleware/errors');
 const foods=require('../db/nutrition-foods.json');
 const foodMap=new Map(foods.map(food=>[food.id,food]));
@@ -39,4 +39,12 @@ async function day(userId,date){date=dateSchema.parse(date);const [p,rows]=await
 async function addEntry(userId,input){const data=entrySchema.parse(input);let food;if(data.food_id){food=foodMap.get(data.food_id);if(!food)fail(404,'FOOD_NOT_FOUND','Makanan tidak ditemui.');}else food={id:null,name_ms:data.custom.name,name_en:data.custom.name,group:'custom',allergens:[],vegetarian:null,source:'label',source_url:null,per100:data.custom.per100};const id=await db.insert('nutrition_entries',{user_id:userId,logged_date:data.date,meal:data.meal,grams:data.grams,food_snapshot:JSON.stringify(food)});return {id};}
 async function updateEntry(userId,id,input){const data=portionSchema.parse(input);const result=await db.update('nutrition_entries',data,'id=? AND user_id=?',[id,userId]);if(!result.affectedRows&&!await db.one('SELECT id FROM nutrition_entries WHERE id=? AND user_id=?',[id,userId]))fail(404,'FOOD_NOT_FOUND','Rekod makanan tidak ditemui.');}
 async function deleteEntry(userId,id){const result=await db.query('DELETE FROM nutrition_entries WHERE id=? AND user_id=?',[id,userId]);if(!result.affectedRows)fail(404,'FOOD_NOT_FOUND','Rekod makanan tidak ditemui.');}
-module.exports={foods,foodMap,nutrientKeys,profileSchema,dateSchema,entrySchema,estimate,portion,totals,suggestions,ensureSchema,profile,saveProfile,day,addEntry,updateEntry,deleteEntry};
+async function progress(userId,range='month'){
+ range=z.enum(['week','month']).parse(range);
+ const count=range==='week'?7:30,end=today(),start=addDays(end,1-count);
+ const [p,rows]=await Promise.all([profile(userId),db.query('SELECT * FROM nutrition_entries WHERE user_id=? AND logged_date>=? AND logged_date<=? ORDER BY logged_date,id',[userId,start,end])]);
+ const entries=rows.map(entry),days=Array.from({length:count},(_,i)=>{const date=addDays(start,i),items=entries.filter(e=>e.date===date);return {date,entries:items.length,...(items.length?totals(items):{totals:Object.fromEntries(nutrientKeys.map(key=>[key,null])),coverage:Object.fromEntries(nutrientKeys.map(key=>[key,0]))})};});
+ const logged=days.filter(d=>d.entries),average=Object.fromEntries(nutrientKeys.map(key=>{const known=logged.filter(d=>d.totals[key]!==null);return [key,known.length?round(known.reduce((sum,d)=>sum+d.totals[key],0)/known.length):null];}));
+ return {range,start,end,days,logged_days:logged.length,entries:entries.length,average,profile:p,target:p?estimate(p):null};
+}
+module.exports={foods,foodMap,nutrientKeys,profileSchema,dateSchema,entrySchema,estimate,portion,totals,suggestions,ensureSchema,profile,saveProfile,day,progress,addEntry,updateEntry,deleteEntry};

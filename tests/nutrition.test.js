@@ -33,6 +33,13 @@ test('private diary persists, validates, scales, edits and deletes',async()=>{
  for(const bad of [{grams:0},{grams:5001},{date:addDays(today(),1)},{food_id:'unknown'}]){r=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send({...entry,...bad});assert.ok([404,422].includes(r.status));}
  r=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send({date:addDays(today(),-1),meal:'snack',grams:50,custom:{name:'<b>My label</b>',per100:{calories:200,protein:10,carbs:20,fat:8}}}).expect(201);
  r=await user.get('/api/nutrition/day?date='+addDays(today(),-1)).expect(200);assert.equal(r.body.totals.calories,100);assert.equal(r.body.totals.sodium,null);assert.equal(r.body.entries[0].food.name_en,'<b>My label</b>');
+ r=await user.get('/api/nutrition/progress?range=week').expect(200);assert.equal(r.body.days.length,7);assert.equal(r.body.logged_days,2);assert.equal(r.body.average.calories,180);assert.equal(r.body.days[0].totals.calories,null);assert.equal(r.body.entries,2);
+ r=await other.get('/api/nutrition/progress?range=week').expect(200);assert.equal(r.body.logged_days,0);assert.equal(r.body.average.calories,null);
+ await request(app).get('/api/nutrition/progress').expect(401);await user.get('/api/nutrition/progress?range=year').expect(422);
+ const older=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send({...entry,date:addDays(today(),-10)}).expect(201);
+ r=await user.get('/api/nutrition/progress?range=month').expect(200);assert.equal(r.body.days.length,30);assert.equal(r.body.logged_days,3);assert.equal(r.body.average.calories,185);
+ r=await user.get('/api/nutrition/progress?range=week').expect(200);assert.equal(r.body.logged_days,2);
+ await user.delete('/api/nutrition/entries/'+older.body.id).set('X-CSRF-Token',csrf).expect(200);
  await user.delete('/api/nutrition/entries/'+id).set('X-CSRF-Token',csrf).expect(200);
  r=await user.get('/api/nutrition/day').expect(200);assert.equal(r.body.entries.length,0);
 });
