@@ -59,6 +59,15 @@ const db=require('../config/db');
   await page.getByRole('button',{name:'Go to my workouts',exact:true}).click();
   await page.getByRole('button',{name:'Start workout',exact:true}).waitFor();
   await expect(page.locator('#daily-title')).toHaveText('Your day at a glance');
+  await expect(page.locator('#beginner-mode')).toHaveAttribute('aria-pressed','true');
+  await page.locator('#beginner-mode').click();
+  await page.reload();
+  await expect(page.locator('#beginner-mode')).toHaveAttribute('aria-pressed','false');
+  await page.locator('#beginner-mode').click();
+  await page.locator('#review-plan').click();
+  await expect(page.locator('#review-status')).toContainText('Review complete');
+  await page.locator('.exercise-explanation summary').first().click();
+  await expect(page.locator('.exercise-explanation').first()).toContainText('Record actual reps');
   await expect(page.locator('.daily-nutrients')).toContainText('Foods logged today');
   await expect(page.locator('#daily-guide')).toHaveAttribute('open','');
   await page.locator('#daily-guide summary').click();
@@ -103,6 +112,7 @@ const db=require('../config/db');
   for(const route of ['dashboard','plan','progress','profile','logs','feedback','adaptations','terms','privacy']){
    await page.goto(base+'/#'+route);await expect(page.locator('#main h1')).toHaveText(headings[route]);
    if(route==='dashboard')await expect(page.locator('#daily-title')).toBeVisible();
+   if(route==='progress'){await expect(page.locator('.journey-badge')).toHaveCount(4);await expect(page.locator('.journey-badge.earned')).toHaveCount(0);await expect(page.locator('.journey-timeline li')).toHaveCount(4);}
    fs.writeFileSync('test-results/preferences-'+route+'.txt',await page.locator('#main').innerText());
    for(const width of [375,768,1440]){
     await page.setViewportSize({width,height:950});

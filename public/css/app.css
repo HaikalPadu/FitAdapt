@@ -14,6 +14,23 @@
 .daily-guide-steps h3 svg{width:16px;height:16px;vertical-align:middle}
 .daily-step-number{color:var(--purple);font-weight:700;font-size:13px;letter-spacing:.08em}
 @media(max-width:650px){.daily-nutrients,.daily-guide-steps{grid-template-columns:1fr;gap:18px}.daily-overview .card-title{flex-wrap:wrap;gap:12px}.daily-nutrients strong{font-size:28px}}
+.journey-guidance{display:flex;align-items:center;gap:16px;margin-bottom:24px;border-bottom:1px solid var(--line);padding-bottom:16px}
+.journey-guidance p{margin:0;color:var(--muted);font-size:14px}
+.journey-guidance button{flex-shrink:0}
+.journey-guidance [aria-pressed=true]{border-color:var(--purple);color:var(--purple)}
+.journey-panel{margin-top:24px}
+.journey-panel summary,.exercise-explanation summary{cursor:pointer;font-weight:600}
+.journey-panel .card-title{flex-wrap:wrap;gap:16px}
+.journey-badges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:24px 0}
+.journey-badge{display:grid;gap:8px;border:1px solid var(--line);border-radius:16px;padding:20px;color:var(--muted)}
+.journey-badge.earned{border-color:var(--purple);color:var(--purple-light)}
+.journey-badge svg{width:26px;height:26px}
+.journey-timeline{padding-left:24px;margin:24px 0}
+.journey-timeline li{padding:0 0 20px 12px;border-left:2px solid var(--purple)}
+.journey-timeline span{display:block;color:var(--muted);margin-top:6px}
+.exercise-explanation{padding:12px 16px;border-left:3px solid var(--purple);margin:0 0 14px;background:var(--card);font-size:14px}
+.exercise-explanation p{line-height:1.6;color:var(--muted)}
+@media(max-width:650px){.journey-guidance{align-items:flex-start;flex-direction:column}.journey-badges{grid-template-columns:repeat(2,minmax(0,1fr))}.journey-badge{padding:14px}}
 :root {
   color-scheme:dark;
   --bg:#0c101c;

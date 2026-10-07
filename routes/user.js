@@ -8,6 +8,8 @@ const {reconcileUser}=require('../services/scheduler');
 const {today,weekStart,addDays}=require('../services/dates');
 const {consistency,streak}=require('../services/stats');
 router.use(requireAuth,requireRole('user'));
+router.get('/journey',async(req,res)=>{await reconcileUser(req.user.id);res.json(await require('../services/journey').journey(req.user.id));});
+router.post('/journey/review',async(req,res)=>res.json(await require('../services/journey').review(req.user.id)));
 router.get('/profile',async(req,res)=>res.json({profile:await t.profile(req.user.id),user:req.user}));
 router.put('/profile',async(req,res)=>res.json({profile:await t.saveProfile(req.user.id,v.profile.parse(req.body))}));
 // Preview uses the same generator as saving, without writing user or plan records.

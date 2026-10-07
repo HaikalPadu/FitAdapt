@@ -10,6 +10,7 @@ after(()=>db.close());
 test('complete user lifecycle with ownership, CSRF, validation, locks and administration',async()=>{
  let r=await user.post('/api/auth/register').send({full_name:'Pengguna Ujian',email:'new@example.test',password,confirm_password:password,accept_terms:true});assert.equal(r.status,201);assert.equal(r.headers['set-cookie'],undefined);assert.equal(r.body.csrf,undefined);
  r=await user.get('/api/auth/me');assert.equal(r.status,401);
+ r=await user.get('/api/journey');assert.equal(r.status,401);
  r=await user.post('/api/onboarding/complete').send({});assert.equal(r.status,401);
  r=await user.post('/api/auth/login').send({email:'new@example.test',password});assert.equal(r.status,200);assert.equal(r.body.onboarded,false);userCsrf=r.body.csrf;userId=r.body.user.id;
  r=await user.get('/api/auth/me');assert.equal(r.body.onboarded,false);assert.ok(r.body.csrf);
@@ -25,6 +26,8 @@ test('complete user lifecycle with ownership, CSRF, validation, locks and admini
  for(const minutes of [0,14,121,25.5]){r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send({...setup,session_minutes:minutes});assert.equal(r.status,422);}
  r=await user.post('/api/onboarding/complete').set('X-CSRF-Token',userCsrf).send(setup);assert.equal(r.status,201,JSON.stringify(r.body));assert.equal(r.body.profile.session_minutes,25);
  r=await user.get('/api/profile');assert.equal(r.body.profile.session_minutes,25);
+ r=await user.post('/api/journey/review').send({});assert.equal(r.status,403);
+ r=await user.post('/api/journey/review').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200);assert.equal(r.body.completed,0);
  r=await user.get('/api/dashboard');assert.equal(r.status,200);assert.ok(r.body.todaySession);assert.deepEqual(r.body.todaySession.exercises.map(e=>e.exercise_id),preview.sessions.find(s=>s.scheduled_date===today()).exercises.map(e=>e.exercise_id));const plannedId=r.body.todaySession.id;
  r=await user.post('/api/sessions/'+plannedId+'/start').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200,JSON.stringify(r.body));logId=r.body.id;const exercises=r.body.exercises;
  const rival=request.agent(app);const other=await rival.post('/api/auth/login').send({email:'user@fitadapt.com',password});r=await rival.get('/api/logs/'+logId);assert.equal(r.status,404);
@@ -32,6 +35,10 @@ test('complete user lifecycle with ownership, CSRF, validation, locks and admini
  for(const e of exercises){r=await user.put(`/api/logs/${logId}/exercises/${e.id}`).set('X-CSRF-Token',userCsrf).send({sets:Array.from({length:e.target_sets},(_,i)=>({set_no:i+1,reps:12,weight_kg:10,rpe:7})),notes:'Baik'});assert.equal(r.status,200,JSON.stringify(r.body));}
  r=await user.post('/api/sessions/'+logId+'/finish').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200);assert.equal(r.body.status,'completed');assert.ok(r.body.edit_locked_at);
  r=await user.get('/api/progress?range=week');assert.equal(r.status,200);assert.equal(r.body.completed,1);assert.equal(r.body.streak,1);assert.equal(r.body.consistency,100);
+ r=await user.get('/api/journey');assert.equal(r.status,200);assert.equal(r.body.completed,1);assert.equal(r.body.milestones[0].achieved,true);
+ const beforeEvents=await db.query('SELECT id FROM adaptation_events WHERE user_id=?',[userId]);
+ for(let i=0;i<2;i++){r=await user.post('/api/journey/review').set('X-CSRF-Token',userCsrf).send({});assert.equal(r.status,200);}
+ assert.deepEqual(await db.query('SELECT id FROM adaptation_events WHERE user_id=?',[userId]),beforeEvents);
  await db.update('session_logs',{edit_locked_at:utc(new Date(Date.now()-1000))},'id=?',[logId]);r=await user.put(`/api/logs/${logId}/exercises/${exercises[0].id}`).set('X-CSRF-Token',userCsrf).send({sets:[],notes:''});assert.equal(r.status,403);assert.equal(r.body.error.code,'LOG_LOCKED');
  r=await admin.get('/api/logs/'+logId);assert.equal(r.status,403);
  r=await user.get('/api/admin/users');assert.equal(r.status,403);
