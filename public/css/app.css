@@ -1,3 +1,19 @@
+.daily-overview,.daily-guide{margin-bottom:24px}
+.daily-nutrients{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.daily-nutrients>div{min-width:0;border-left:3px solid var(--purple);padding-left:18px}
+.daily-nutrients>div:nth-child(2){border-color:var(--muted)}
+.daily-nutrients strong{display:block;font-size:32px;line-height:1.5;color:var(--purple-light)}
+.daily-nutrients strong small{font-size:14px;color:var(--muted)}
+.daily-nutrients p,.daily-guide-steps p{font-size:14px;color:var(--muted);line-height:1.6}
+.daily-nutrients meter{width:100%;height:12px;accent-color:var(--purple)}
+.daily-guide summary{cursor:pointer;font-weight:700;padding:4px 0}
+.daily-guide-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:20px}
+.daily-guide-steps a{color:var(--text);display:block;border-top:1px solid var(--line);padding-top:16px;text-decoration:none}
+.daily-guide-steps a:hover h3{color:var(--purple)}
+.daily-guide-steps h3{font-size:16px;margin:10px 0}
+.daily-guide-steps h3 svg{width:16px;height:16px;vertical-align:middle}
+.daily-step-number{color:var(--purple);font-weight:700;font-size:13px;letter-spacing:.08em}
+@media(max-width:650px){.daily-nutrients,.daily-guide-steps{grid-template-columns:1fr;gap:18px}.daily-overview .card-title{flex-wrap:wrap;gap:12px}.daily-nutrients strong{font-size:28px}}
 :root {
   color-scheme:dark;
   --bg:#0c101c;
