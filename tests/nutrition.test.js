@@ -6,6 +6,24 @@ const profile={age:30,sex:'male',height_cm:180,weight_kg:80,activity:'moderate',
 let app,user,other,csrf,otherCsrf;
 before(async()=>{await db.init();await require('../db/migrate')();app=require('../server').createApp();user=request.agent(app);other=request.agent(app);for(const [agent,email] of [[user,'nutrition@example.test'],[other,'other@example.test']]){await agent.post('/api/auth/register').send({full_name:'Nutrition Tester',email,password:'Nutrition123!',confirm_password:'Nutrition123!',accept_terms:true}).expect(201);const r=await agent.post('/api/auth/login').send({email,password:'Nutrition123!'}).expect(200);if(agent===user)csrf=r.body.csrf;else otherCsrf=r.body.csrf;}});
 after(()=>db.close());
+test('custom foods remain reusable, deduplicated and private, including older labels',async()=>{
+ const label={date:today(),meal:'snack',grams:50,custom:{name:'Reusable oats',per100:{calories:300,protein:10,carbs:50,fat:6}}};
+ let r=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send(label).expect(201);const id=r.body.id,foodId=r.body.food_id;assert.match(foodId,/^custom-/);
+ r=await user.get('/api/nutrition/foods?q=Reusable').expect(200);assert.equal(r.body.foods.length,1);assert.equal(r.body.foods[0].id,foodId);
+ r=await other.get('/api/nutrition/foods?q=Reusable').expect(200);assert.equal(r.body.foods.length,0);
+ await other.post('/api/nutrition/entries').set('X-CSRF-Token',otherCsrf).send({date:today(),meal:'lunch',grams:100,food_id:foodId}).expect(404);
+ r=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send(label).expect(201);const duplicate=r.body.id;assert.equal(r.body.food_id,foodId);
+ for(const entryId of [id,duplicate])await user.delete('/api/nutrition/entries/'+entryId).set('X-CSRF-Token',csrf).expect(200);
+ r=await user.get('/api/nutrition/foods?q=Reusable').expect(200);assert.equal(r.body.foods.length,1);
+ r=await user.post('/api/nutrition/entries').set('X-CSRF-Token',csrf).send({date:today(),meal:'breakfast',grams:75,food_id:foodId}).expect(201);const reused=r.body.id;
+ r=await user.get('/api/nutrition/day').expect(200);assert.equal(r.body.entries.find(e=>e.id===reused).nutrients.calories,225);
+ await user.delete('/api/nutrition/entries/'+reused).set('X-CSRF-Token',csrf).expect(200);
+ const owner=await db.one('SELECT id FROM users WHERE email=?',['nutrition@example.test']);
+ const legacy={id:null,name_ms:'Legacy meal',name_en:'Legacy meal',group:'custom',allergens:[],source:'label',source_url:null,per100:{calories:100,protein:5,carbs:10,fat:4,fiber:null,sugar:null,sodium:null,calcium:null,iron:null,potassium:null}};
+ const legacyId=await db.insert('nutrition_entries',{user_id:owner.id,logged_date:today(),meal:'snack',grams:100,food_snapshot:JSON.stringify(legacy)});
+ for(let i=0;i<2;i++){r=await user.get('/api/nutrition/foods?q=Legacy').expect(200);assert.equal(r.body.foods.length,1);assert.match(r.body.foods[0].id,/^custom-/);}
+ await user.delete('/api/nutrition/entries/'+legacyId).set('X-CSRF-Token',csrf).expect(200);
+});
 test('estimates, guardrails, portion precision and missing data',()=>{
  const male=n.estimate(profile);assert.equal(male.resting,1780);assert.equal(male.calories,3060);assert.equal(n.estimate({...profile,sex:'female'}).resting,1614);
  assert.equal(n.estimate({...profile,goal:'maintain'}).calories,2760);assert.equal(n.estimate({...profile,goal:'lose'}).calories,2460);

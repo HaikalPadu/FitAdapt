@@ -36,7 +36,29 @@ function entry(row){const food=JSON.parse(row.food_snapshot);return {id:row.id,d
 function totals(entries){const result={},coverage={};for(const key of nutrientKeys){const known=entries.filter(e=>e.food.per100[key]!==null);coverage[key]=known.length;result[key]=known.length||!entries.length?round(known.reduce((sum,e)=>sum+e.food.per100[key]*e.grams/100,0)):null;}return {totals:result,coverage};}
 function suggestions(p){return foods.filter(f=>(!p||p.diet!=='vegetarian'||f.vegetarian)&&!f.allergens.some(a=>p?.avoid.includes(a))).sort((a,b)=>{const groups=p?.goal==='gain'?['fats','protein','grains','dairy','vegetables','fruit']:['protein','vegetables','grains','fruit','dairy','fats'];return groups.indexOf(a.group)-groups.indexOf(b.group);}).filter((food,index,list)=>list.slice(0,index).filter(f=>f.group===food.group).length<1).slice(0,6);}
 async function day(userId,date){date=dateSchema.parse(date);const [p,rows]=await Promise.all([profile(userId),db.query('SELECT * FROM nutrition_entries WHERE user_id=? AND logged_date=? ORDER BY id',[userId,date])]);const entries=rows.map(entry);return {date,entries,...totals(entries),profile:p,target:p?estimate(p):null,suggestions:suggestions(p)};}
-async function addEntry(userId,input){const data=entrySchema.parse(input);let food;if(data.food_id){food=foodMap.get(data.food_id);if(!food)fail(404,'FOOD_NOT_FOUND','Makanan tidak ditemui.');}else food={id:null,name_ms:data.custom.name,name_en:data.custom.name,group:'custom',allergens:[],vegetarian:null,source:'label',source_url:null,per100:data.custom.per100};const id=await db.insert('nutrition_entries',{user_id:userId,logged_date:data.date,meal:data.meal,grams:data.grams,food_snapshot:JSON.stringify(food)});return {id};}
+function savedFood(row){return {...JSON.parse(row.food_snapshot),id:'custom-'+row.id,group:'custom',source:'label'};}
+async function saveFood(userId,food){
+ const fingerprint=require('node:crypto').createHash('sha256').update(JSON.stringify([food.name_en.trim().toLowerCase(),...nutrientKeys.map(key=>food.per100[key]??null)])).digest('hex');
+ const insert=db.driver==='mysql'?'INSERT IGNORE':'INSERT OR IGNORE';
+ await db.query(`${insert} INTO nutrition_foods (user_id,fingerprint,food_snapshot) VALUES (?,?,?)`,[userId,fingerprint,JSON.stringify(food)]);
+ return savedFood(await db.one('SELECT * FROM nutrition_foods WHERE user_id=? AND fingerprint=?',[userId,fingerprint]));
+}
+async function catalog(userId){
+ // Recover previously entered labels without modifying their diary snapshots.
+ const old=await db.query('SELECT DISTINCT food_snapshot FROM nutrition_entries WHERE user_id=?',[userId]);
+ for(const row of old){const food=JSON.parse(row.food_snapshot);if(food.source==='label'&&!food.id)await saveFood(userId,food);}
+ const saved=await db.query('SELECT * FROM nutrition_foods WHERE user_id=? ORDER BY id DESC',[userId]);
+ return [...saved.map(savedFood),...foods];
+}
+async function addEntry(userId,input){
+ const data=entrySchema.parse(input);
+ return db.transaction(async()=>{
+  let food;
+  if(data.food_id){food=foodMap.get(data.food_id);if(!food&&/^custom-\d+$/.test(data.food_id)){const row=await db.one('SELECT * FROM nutrition_foods WHERE id=? AND user_id=?',[data.food_id.slice(7),userId]);if(row)food=savedFood(row);}if(!food)fail(404,'FOOD_NOT_FOUND','Makanan tidak ditemui.');}
+  else food=await saveFood(userId,{id:null,name_ms:data.custom.name,name_en:data.custom.name,group:'custom',allergens:[],vegetarian:null,source:'label',source_url:null,per100:data.custom.per100});
+  const id=await db.insert('nutrition_entries',{user_id:userId,logged_date:data.date,meal:data.meal,grams:data.grams,food_snapshot:JSON.stringify(food)});return {id,food_id:food.id};
+ });
+}
 async function updateEntry(userId,id,input){const data=portionSchema.parse(input);const result=await db.update('nutrition_entries',data,'id=? AND user_id=?',[id,userId]);if(!result.affectedRows&&!await db.one('SELECT id FROM nutrition_entries WHERE id=? AND user_id=?',[id,userId]))fail(404,'FOOD_NOT_FOUND','Rekod makanan tidak ditemui.');}
 async function deleteEntry(userId,id){const result=await db.query('DELETE FROM nutrition_entries WHERE id=? AND user_id=?',[id,userId]);if(!result.affectedRows)fail(404,'FOOD_NOT_FOUND','Rekod makanan tidak ditemui.');}
 async function progress(userId,range='month'){
@@ -47,4 +69,4 @@ async function progress(userId,range='month'){
  const logged=days.filter(d=>d.entries),average=Object.fromEntries(nutrientKeys.map(key=>{const known=logged.filter(d=>d.totals[key]!==null);return [key,known.length?round(known.reduce((sum,d)=>sum+d.totals[key],0)/known.length):null];}));
  return {range,start,end,days,logged_days:logged.length,entries:entries.length,average,profile:p,target:p?estimate(p):null};
 }
-module.exports={foods,foodMap,nutrientKeys,profileSchema,dateSchema,entrySchema,estimate,portion,totals,suggestions,ensureSchema,profile,saveProfile,day,progress,addEntry,updateEntry,deleteEntry};
+module.exports={catalog,foods,foodMap,nutrientKeys,profileSchema,dateSchema,entrySchema,estimate,portion,totals,suggestions,ensureSchema,profile,saveProfile,day,progress,addEntry,updateEntry,deleteEntry};

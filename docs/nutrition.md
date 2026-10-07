@@ -14,6 +14,8 @@ The estimator is restricted to adults 18–78 who confirm they are not pregnant,
 
 ## Storage and verification
 
+Custom labels are automatically retained in a private `nutrition_foods` library and appear under My foods. Identical names and per-100g nutrient values are deduplicated; different recipes remain distinct. Reusing a food requires only a portion and meal selection. Deleting a diary entry does not remove its saved food. Existing custom diary snapshots are recovered into the library when the catalogue is opened. Saved IDs are scoped to the signed-in user; historical diary snapshots remain unchanged.
+
 `nutrition_profiles` and `nutrition_entries` are additive tables. Standard migrations create them; authenticated nutrition requests also ensure the tables/index exist for upgrades of existing deployments. Entries store a source snapshot so later catalogue updates do not alter historical logs. All queries are scoped to the authenticated user, mutations require CSRF, and administrators cannot access this user-only API.
 
 `npm test` includes equation, validation, portion, missing-data, privacy and CRUD checks through SQLite and libSQL. `node tests/nutrition-browser.js` checks the complete UI flow on an isolated in-memory database, including both languages/themes and phone/tablet/desktop widths.

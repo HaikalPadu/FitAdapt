@@ -41,3 +41,21 @@
 .nutrition-progress-empty { padding:28px 16px; text-align:center; background:var(--bg); border-radius:12px; }.nutrition-progress-empty p { color:var(--muted); }
 .nutrition-progress-data table { min-width:480px; }.nutrition-progress-data th { text-align:left; }
 @media(max-width:600px){.nutrition-progress-stats { grid-template-columns:1fr; gap:10px; }.nutrition-profile-details { grid-template-columns:1fr; }.nutrition-summary>.card-title { flex-wrap:wrap; gap:12px; }}
+.nutrition-workspace { grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); }
+.nutrition-workspace .nutrition-diary { align-self:start; }
+.nutrition-hero h2,.nutrition-calculator>h2,.nutrition-summary h2 { color:var(--purple-light); }
+.nutrition-diary h2,.nutrition-energy>div>strong,.nutrition-ring strong,.nutrition-profile-guide strong { color:var(--green); }
+.nutrition-macro.protein>strong,.nutrition-macro.protein>span { color:var(--purple-light); }
+.nutrition-macro.carbs>strong,.nutrition-macro.carbs>span { color:var(--green); }
+.nutrition-macro.fat>strong,.nutrition-macro.fat>span { color:var(--amber); }
+.nutrition-macro { border-top:3px solid var(--purple-light); }.nutrition-macro.carbs { border-top-color:var(--green); }.nutrition-macro.fat { border-top-color:var(--amber); }
+.nutrition-meal h3,.nutrition-food-heading h3 { color:var(--purple-light); }
+.nutrition-meal>.row>small,.nutrition-entry p { color:var(--green); }
+.nutrition-suggestions h2,.nutrition-progress-stats>div:first-child strong { color:var(--amber); }
+.nutrition-progress-stats>div:nth-child(2) strong { color:var(--green); }.nutrition-progress-stats>div:nth-child(3) strong { color:var(--purple-light); }
+.nutrition-facts dd { color:var(--green); }.nutrition-facts small { color:var(--muted); }
+.nutrition-profile-details dd { color:var(--purple-light); }
+.nutrition-save-note { padding:12px 14px; background:var(--green-bg); border-left:3px solid var(--green); border-radius:8px; color:var(--green); font-size:12px; }
+.nutrition-custom>summary { color:var(--purple-light); padding:12px 0; }
+.nutrition-food-card:focus-visible { outline:2px solid var(--purple-light); outline-offset:3px; }
+@media(max-width:760px){.nutrition-workspace { grid-template-columns:1fr; }.nutrition-workspace .nutrition-diary { position:static; }.nutrition-macros { grid-template-columns:repeat(3,minmax(0,1fr)); }.nutrition-macro>strong { font-size:20px; }.nutrition-macro strong small { display:block; }.nutrition-macro>span { font-size:11px; }}

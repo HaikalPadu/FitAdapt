@@ -4,7 +4,7 @@ const n=require('../services/nutrition');
 const {today}=require('../services/dates');
 router.use(requireAuth,requireRole('user'));
 router.use(async(req,res,next)=>{await n.ensureSchema();next();});
-router.get('/foods',(req,res)=>{const q=String(req.query.q||'').trim().slice(0,100).toLowerCase();res.json({foods:n.foods.filter(f=>(f.name_ms+' '+f.name_en+' '+f.source_description).toLowerCase().includes(q))});});
+router.get('/foods',async(req,res)=>{const q=String(req.query.q||'').trim().slice(0,100).toLowerCase();res.json({foods:(await n.catalog(req.user.id)).filter(f=>(f.name_ms+' '+f.name_en+' '+(f.source_description||'')).toLowerCase().includes(q))});});
 router.get('/day',async(req,res)=>res.json(await n.day(req.user.id,req.query.date||today())));
 router.get('/progress',async(req,res)=>res.json(await n.progress(req.user.id,req.query.range||'month')));
 router.get('/profile',async(req,res)=>{const profile=await n.profile(req.user.id);res.json({profile,target:profile?n.estimate(profile):null});});
